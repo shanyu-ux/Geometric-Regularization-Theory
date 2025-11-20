@@ -1,45 +1,69 @@
-# Geometric-Regularization-Theory
-Implementation of the Jacobian Oracle and Riemannian Gradient Correction for adversarial robustness. The computational price of geometric truth
-# Riemannian Adversarial Dynamics
+# Non-Commutative Geometric Dynamics (NCGD)
 
-> "Computing the Price of Truth in Geometric Regularization."
+> **A C++ framework for structure-preserving optimization on Lie Groups.**
 
-[![Status](https://img.shields.io/badge/Status-Research_Preview-blue)]()
 [![License](https://img.shields.io/badge/License-MIT-green)]()
+[![Standard](https://img.shields.io/badge/C%2B%2B-17%2F20-blue)]()
+[![Math](https://img.shields.io/badge/Math-Lie_Theory-purple)]()
 
 ## Abstract
-![Riemannian vs Euclidean Flow](./manifold_vis.png)
-*Figure 1: The Euclidean Illusion (Red) vs. The Riemannian Correction (Cyan). Note how the corrected flow respects the manifold's curvature.*Modern adversarial training operates under a "Euclidean Illusion"—assuming that the steepest ascent direction is given by the Euclidean gradient $\nabla_{Euc} \mathcal{L}$. On curved data manifolds, this assumption fails, leading to a misalignment between the attack vector and the data geometry.
 
-This repository implements the **Riemannian Adversary**, a theoretically rigorous algorithm that corrects this flaw. By explicitly computing the **Jacobian Pullback Metric** $G(x)$, we recover the true gradient flow on the manifold.
+Standard deep learning optimization algorithms (e.g., SGD, Adam) operate on the assumption of a flat Euclidean parameter space. While effective for unstructured data, this assumption violates the geometric constraints of physical systems governed by **Lie Group symmetries** (e.g., Rigid Body Dynamics in SE(3)).
+
+**NCGD** is a computational library designed to enforce **Geometric Rigidity** and **Conformality**. Instead of Euclidean vector addition, it implements exact **Lie Algebraic operations** (Baker-Campbell-Hausdorff formula, Exponential Maps, and Lie Brackets) to ensure that optimization trajectories remain on the valid data manifold.
+
+## Mathematical Formulation
+
+### 1. Non-Commutativity and the Lie Bracket
+Unlike vector spaces, operations on the Special Euclidean Group $SE(3)$ are non-commutative. NCGD explicitly computes the **Lie Bracket** to model the curvature of the state space:
 
 $$
-\text{Update Rule: } \quad x_{t+1} \leftarrow \text{Exp}_{x_t} \left( \alpha \cdot \underbrace{G(x_t)^{-1}}_{\text{Correction}} \cdot \nabla_{Euc} \mathcal{L} \right)
+[\xi_1, \xi_2] = \text{ad}_{\xi_1}(\xi_2) \in \mathfrak{se}(3)
 $$
 
-This implementation represents the "Hardcore" regime of the Computational-Statistical Trade-off: paying a high query cost (Oracle Complexity) to achieve a tighter theoretical bound on generalization.
+This formulation allows for the precise modeling of coupled dynamics (e.g., rotational-translational coupling) that linear approximations fail to capture.
 
-## Theoretical Framework
+### 2. Riemannian Adversarial Regularization
+To bound the generalization error on curved manifolds, we implement a **Jacobian Oracle** that computes the local **Pullback Metric Tensor** $G(x)$:
 
-This work is based on the derivation **"Upgrading a Geometric Regularization Framework"** (Shan YU, 2025).
+$$
+G(x) = J_f(x)^\top J_f(x)
+$$
 
-* **The Gap:** The divergence between the tractable average-case regularizer ($\mathbb{E}_x$) and the required worst-case supremum ($\sup_z$).
-* **The Bridge:** A Zero-Sum Game where the Maximizer (this adversary) queries a **Jacobian Oracle** to find the true local Lipschitz constant.
-* **The Cost:** The algorithm solves a linear system involving the Metric Tensor at every step ($O(d^3)$), explicitly trading compute for geometric validity.
+The adversarial perturbation $\delta$ is then computed via the Riemannian gradient flow:
 
-## Usage
+$$
+\delta_{t+1} = \text{Exp}_{x_t} \left( \alpha \cdot G(x_t)^{-1} \nabla_{Euc} \mathcal{L} \right)
+$$
 
-```python
-from riemannian_adversary import RiemannianAdversary
-import torch
+This explicitly penalizes the Lipschitz constant of the network with respect to the intrinsic geometry of the data.
 
-# 1. Define your map (Model)
-model = MyNeuralNetwork()
+## Computational Architecture
 
-# 2. Initialize the Riemannian Adversary
-# We accept the computational cost to find the true worst-case perturbation
-adversary = RiemannianAdversary(model, epsilon=0.1, alpha=0.01, num_steps=10)
+The library is structured into two components:
 
-# 3. Query the Oracle (Generate Attack)
-x_clean = torch.randn(16, 10) # Batch of data
-x_adv = adversary.perturb(x_clean)
+* **`src/core/` (C++)**: A header-only, dependency-free implementation of Lie Algebra operations.
+    * `se3_algebra.hpp`: Exact implementation of $\mathfrak{se}(3)$ operations.
+    * `hessian_probe.cpp`: Lanczos-based estimation of spectral curvature.
+* **`python_prototype/` (Python)**: Proof-of-concept implementation of Riemannian Adversarial Dynamics using PyTorch functional primitives for verification.
+
+## Applications
+
+This framework is intended for domains requiring strict adherence to physical conservation laws and geometric constraints:
+
+* **Robotics:** Kinematic chain optimization with guaranteed rigidity.
+* **Molecular Dynamics:** Energy landscape exploration respecting $SE(3)$ equivariance.
+* **Astrophysics:** Inference on non-Euclidean manifolds (e.g., gravitational lensing).
+
+## Citation
+
+If you use this framework in your research, please cite:
+
+```bibtex
+@misc{yu2025ncgd,
+  title={Non-Commutative Geometric Dynamics: A Framework for Rigid Body Mechanics and Riemannian Optimization},
+  author={Yu, Shan},
+  year={2025},
+  publisher={GitHub},
+  howpublished={\url{[https://github.com/](https://github.com/)[YOUR_USERNAME]/NCGD}},
+}
